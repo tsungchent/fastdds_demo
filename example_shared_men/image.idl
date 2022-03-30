@@ -1,0 +1,12 @@
+struct image
+{
+	// unsigned long index;
+	long long timestamp_base;
+	long long timestamp;
+	
+	string message;
+	long width;
+	long height;
+    long chn;
+	sequence<octet> data;
+};
