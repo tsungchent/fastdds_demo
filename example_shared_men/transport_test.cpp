@@ -11,6 +11,10 @@
 #include <chrono>
 #include <thread>
 
+#include <algorithm>
+#include <numeric>
+
+
 std::shared_ptr<image> toImageMsg(const cv::Mat &cvimage, long long timestamp)
 {
     std::shared_ptr<image> image_msg = std::make_shared<image>();
@@ -77,18 +81,25 @@ void send_image_test(const std::string load_videopath, double fps)
         }
 
         long long base_time = std::chrono::duration_cast<std::chrono::microseconds>(time_base.time_since_epoch()).count();
-        long long delay = (1. / fps) * 1e6;
+        long long delay = (1. / 60) * 1e6;
+        
+        std::cout << "delay: " << delay << std::endl;
+        long long timestamp = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - time_base).count();
         // sleep
         for (size_t i = 0; i < images_msgs.size(); i++)
         {
             auto image = images_msgs[i];
-            auto timestamp = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - time_base).count();
+            timestamp = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - time_base).count();
             image->timestamp_base(base_time);
             image->timestamp(timestamp);
             std::cout << timestamp << " publish image: " << image->data().size() << std::endl; 
             pub.publish(image);
-            std::this_thread::sleep_for(std::chrono::microseconds(delay));
+            long long current = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - time_base).count();
+            std::this_thread::sleep_for(std::chrono::nanoseconds(100));
         }
+        
+        timestamp = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - time_base).count();
+        std::cout << "actual fps:" << images_msgs.size() * 1e6 / timestamp;
     }
 }
 
@@ -105,9 +116,11 @@ public:
             long long delay = now_time - image->timestamp_base() - image->timestamp();
             cv::Mat cvimage = toCvImage(image);
             image_list.push_back(cvimage);
+            timestamp_list.push_back(image->timestamp());
             image_cout++;
             // std::cout << ".";
-            std::cout << reinterpret_cast<long long>(this) <<  " received image : "<< image_list.size() << " delay time: " << delay << std::endl;
+            // std::cout << reinterpret_cast<long long>(this) <<  " received image : "<< image_list.size() << " delay time: " << delay << std::endl;
+            delays.push_back(delay);
             total_delay += delay;
             return true;
         } else {
@@ -115,6 +128,22 @@ public:
         }
         return false;
     }
+
+    void print_delay_info() const {
+        auto delay_sort = delays;
+        std::sort(delay_sort.begin(), delay_sort.end());
+        
+        double min = delay_sort[0];
+        double max = delay_sort.back();
+        double mean = std::accumulate(delay_sort.begin(), delay_sort.end(), 0) / (double) delay_sort.size();
+        double med = delay_sort[delay_sort.size() / 2];
+
+        std::cout << "min : " << min << std::endl;
+        std::cout << "max : " << max << std::endl;
+        std::cout << "mean : " << mean << std::endl;
+        std::cout << "med : " << med << std::endl;
+    }
+
     const std::vector<cv::Mat> &get_image_list() const
     {
         return image_list;
@@ -122,14 +151,15 @@ public:
 
 private:
     std::vector<cv::Mat> image_list;
+    std::vector<long long> timestamp_list;
+    std::vector<long long> delays;
 
     long long total_delay = 0;
     int image_cout = 0;
 };
 
-void receive_image_test(const std::string &safe_videopath, int fps)
+void receive_image_test(const std::string &save_videopath, int fps)
 {
-
     ReceivedImageSeq imageSeq;
     MessageSubscriber sub;
 
@@ -139,15 +169,20 @@ void receive_image_test(const std::string &safe_videopath, int fps)
     {
         sub.run();
     }
-    
     const std::vector<cv::Mat> &images = imageSeq.get_image_list();
     std::cout << "write image sequence: size = " << images.size() << std::endl;
     std::cout << "address imageseq: " << reinterpret_cast<long long>(&imageSeq) << std::endl;
+
+    imageSeq.print_delay_info();
+
     if (images.size() > 0)
     {
         int width = images[0].cols;
         int height = images[1].rows;
-        cv::VideoWriter writer(safe_videopath, cv::VideoWriter::fourcc('F', 'M', 'P', 'G'), fps, cv::Size(width, height));
+        int codec = cv::VideoWriter::fourcc('F', 'M', 'P', 'G');
+        if (fps<=0)
+           codec = 0; 
+        cv::VideoWriter writer(save_videopath, codec, fps, cv::Size(width, height));
         for (size_t ii = 0; ii < images.size(); ii++)
         {
             writer << images[ii];

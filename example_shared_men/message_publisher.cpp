@@ -77,10 +77,8 @@ bool MessagePublisher::init(int width, int height, int chn)
     PParam.rtps.useBuiltinTransports = false;
 
     auto shm_transport = std::make_shared<SharedMemTransportDescriptor>();
-    shm_transport->segment_size(2 * 2048 * 2048);
-
+    shm_transport->segment_size(8 * 2048 * 2048);
     PParam.rtps.userTransports.push_back(shm_transport);
-
     // UDP
     auto udp_transport = std::make_shared<UDPv4TransportDescriptor>();
     // udp_transport->interfaceWhiteList.push_back("127.0.0.1");
@@ -105,16 +103,17 @@ bool MessagePublisher::init(int width, int height, int chn)
 
     Wparam.topic.historyQos.kind = KEEP_LAST_HISTORY_QOS;
     Wparam.topic.historyQos.depth = 30;
-    Wparam.qos.m_publishMode.kind = ASYNCHRONOUS_PUBLISH_MODE;
+    // Wparam.qos.m_publishMode.kind = ASYNCHRONOUS_PUBLISH_MODE;
     // this is imported setting for dynamic msg, for example sequence and map
     Wparam.historyMemoryPolicy = rtps::PREALLOCATED_WITH_REALLOC_MEMORY_MODE;
 
     Wparam.topic.resourceLimitsQos.max_samples = 50;
     Wparam.topic.resourceLimitsQos.allocated_samples = 20;
     Wparam.times.heartbeatPeriod.seconds = 2;
-    Wparam.times.heartbeatPeriod.nanosec = 200 * 1000 * 1000;
+    Wparam.times.heartbeatPeriod.nanosec = 5 * 1000 * 1000;
     Wparam.qos.m_reliability.kind = RELIABLE_RELIABILITY_QOS;
-    Wparam.qos.m_publishMode.kind = ASYNCHRONOUS_PUBLISH_MODE;
+    // Wparam.qos.m_publishMode.kind = ASYNCHRONOUS_PUBLISH_MODE;
+    Wparam.qos.m_publishMode.kind = SYNCHRONOUS_PUBLISH_MODE;
 
     mp_publisher_ = Domain::createPublisher(mp_participant_, Wparam, (PublisherListener *)&m_listener_);
     if (mp_publisher_ == nullptr)

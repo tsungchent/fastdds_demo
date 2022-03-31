@@ -40,6 +40,14 @@ add_executable(transport_test
 target_link_libraries(transport_test PUBLIC fastcdr fastrtps cxxopts::cxxopts ${OpenCV_LIBS})
 target_include_directories(transport_test PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
+# videcompare tools
+add_executable(videocompare_tools
+    video_compare.cpp
+)
+target_link_libraries(videocompare_tools 
+    PUBLIC ${OpenCV_LIBS} cxxopts::cxxopts
+)
+
 if(FASTDDSGEN_PATH)
     set( GENERATE_SOURCE
         ${CMAKE_CURRENT_BINARY_DIR}/image.hpp
@@ -58,7 +66,7 @@ if(FASTDDSGEN_PATH)
     # message(java " -jar" " ${FASTDDSGEN_PATH}" " ${CMAKE_CURRENT_SOURCE_DIR}/hello_world.idl"  " -d" " ${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 
-install(TARGETS example_shared_mem transport_test
+install(TARGETS example_shared_mem transport_test videocompare_tools
    EXPORT fastdds_demoTargets
    LIBRARY DESTINATION lib  
    ARCHIVE DESTINATION lib  
